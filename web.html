@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hierarchical Multi-Agent Systems (H-MAS) | Technical Concept Report</title>
+<meta name="description" content="A proposed architecture for coordinating AI agents with different capabilities. Prepared and credited to Not Rigit.">
+<style>
+:root {
+  --bg: #EDF0F3;
+  --surface: #F8FAFB;
+  --ink: #16202E;
+  --muted: #526074;
+  --line: #CBD3DD;
+  --soft: #E2E7ED;
+  --link: #2F34A0;
+
+  --orch: #3A3FA8;  --on-orch: #FFFFFF;
+  --large: #8E2F6B; --on-large: #FFFFFF;
+  --med: #0B7478;   --on-med: #FFFFFF;
+  --small: #9A5E0A; --on-small: #FFFFFF;
+
+  --warn-bg: #FFF4DC;
+  --warn-line: #B7791F;
+
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+:root[data-theme="dark"] {
+  --bg: #0F141C;
+  --surface: #161D28;
+  --ink: #E6EBF2;
+  --muted: #98A5B8;
+  --line: #2B3646;
+  --soft: #1E2733;
+  --link: #A9ADFF;
+
+  --orch: #8E93F5;  --on-orch: #0F141C;
+  --large: #E58BC4; --on-large: #0F141C;
+  --med: #4FC3C7;   --on-med: #0F141C;
+  --small: #E8B04F; --on-small: #0F141C;
+
+  --warn-bg: #2A2314;
+  --warn-line: #E8B04F;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0F141C; --surface: #161D28; --ink: #E6EBF2; --muted: #98A5B8;
+    --line: #2B3646; --soft: #1E2733; --link: #A9ADFF;
+    --orch: #8E93F5; --on-orch: #0F141C;
+    --large: #E58BC4; --on-large: #0F141C;
+    --med: #4FC3C7; --on-med: #0F141C;
+    --small: #E8B04F; --on-small: #0F141C;
+    --warn-bg: #2A2314; --warn-line: #E8B04F;
+  }
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 1.5rem; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  -webkit-text-size-adjust: 100%;
+}
+a { color: var(--link); text-underline-offset: 3px; }
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+  outline: 3px solid var(--orch);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+:root[data-theme="dark"] a:focus-visible,
+:root[data-theme="dark"] button:focus-visible,
+:root[data-theme="dark"] [tabindex]:focus-visible { outline-color: var(--ink); }
+
+/* ---------- Hero ---------- */
+.hero {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 1.5rem;
+}
+.hero-top {
+  display: flex; justify-content: space-between; align-items: center; gap: 1rem;
+  color: var(--muted); font-size: .9rem; margin-bottom: 2rem;
+}
+.theme-btn {
+  font: inherit; font-size: .85rem; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line);
+  padding: .4rem .8rem; border-radius: 999px; cursor: pointer;
+}
+.theme-btn:hover { border-color: var(--muted); }
+h1 {
+  font-family: var(--serif);
+  font-weight: 700;
+  font-size: clamp(2.3rem, 6.2vw, 4.4rem);
+  line-height: 1.04;
+  letter-spacing: -0.02em;
+  margin: 0 0 1rem;
+  max-width: 14ch;
+}
+.hero .lede {
+  font-family: var(--serif);
+  font-size: clamp(1.15rem, 2.2vw, 1.5rem);
+  line-height: 1.4;
+  color: var(--muted);
+  max-width: 34ch;
+  margin: 0 0 1.5rem;
+}
+.meta {
+  display: flex; flex-wrap: wrap; gap: .4rem 1.75rem;
+  font-size: .92rem; color: var(--muted); margin: 0 0 1.75rem; padding: 0;
+}
+.meta div { display: flex; gap: .4rem; }
+.meta dt { font-weight: 600; color: var(--ink); }
+.meta dd { margin: 0; }
+
+.status {
+  background: var(--warn-bg);
+  border-left: 4px solid var(--warn-line);
+  padding: .9rem 1.1rem;
+  border-radius: 0 8px 8px 0;
+  max-width: 72ch;
+  font-size: .98rem;
+}
+.status strong { font-weight: 700; }
+
+/* ---------- Hierarchy explorer ---------- */
+.explorer {
+  max-width: 1180px;
+  margin: 1rem auto 0;
+  padding: 0 1.5rem;
+}
+.explorer-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 1.25rem 1.25rem 1.5rem;
+}
+.explorer-card h2 {
+  font-family: var(--serif); font-size: 1.2rem; margin: 0 0 .2rem;
+}
+.explorer-card .hint { margin: 0 0 .75rem; color: var(--muted); font-size: .92rem; }
+#tree { width: 100%; height: auto; display: block; }
+#tree .node { cursor: pointer; transition: opacity .2s; }
+#tree[data-sel] .node:not(.sel) { opacity: .28; }
+#tree .link { stroke: var(--line); stroke-width: 2; fill: none; }
+#tree .esc { stroke: var(--large); stroke-width: 2; stroke-dasharray: 5 5; fill: none; }
+#tree text { font-family: var(--sans); font-size: 14px; font-weight: 600; pointer-events: none; }
+#tree .tiny { font-size: 11px; font-weight: 500; fill: var(--muted); }
+.n-orch rect { fill: var(--orch); } .n-orch text { fill: var(--on-orch); }
+.n-large rect { fill: var(--large); } .n-large text { fill: var(--on-large); }
+.n-med rect { fill: var(--med); } .n-med text { fill: var(--on-med); }
+.n-small circle { fill: var(--small); }
+.n-small .hit { fill: transparent; stroke: var(--small); stroke-width: 1.5; stroke-dasharray: 3 3; }
+#tree .node.sel rect, #tree .node.sel .hit { stroke: var(--ink); stroke-width: 3; stroke-dasharray: none; }
+#tree .node:focus-visible { outline: none; }
+#tree .node:focus-visible rect, #tree .node:focus-visible .hit { stroke: var(--ink); stroke-width: 3; stroke-dasharray: none; }
+
+.draw { stroke-dasharray: 400; stroke-dashoffset: 400; animation: draw 1.1s ease-out .2s forwards; }
+.dot-in { opacity: 0; animation: dotin .4s ease-out forwards; }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes dotin { to { opacity: 1; } }
+
+.tabs { display: flex; flex-wrap: wrap; gap: .5rem; margin: .75rem 0 1rem; }
+.tab {
+  font: inherit; font-size: .92rem; font-weight: 600;
+  display: inline-flex; align-items: center; gap: .5rem;
+  background: var(--bg); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 8px;
+  padding: .5rem .8rem; cursor: pointer;
+}
+.tab:hover { border-color: var(--muted); }
+.tab[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.swatch { width: .8rem; height: .8rem; border-radius: 3px; display: inline-block; }
+.tab .count { font-weight: 400; opacity: .8; }
+
+#panel { border-top: 1px solid var(--line); padding-top: 1rem; min-height: 9rem; }
+#panel h3 { font-family: var(--serif); font-size: 1.3rem; margin: 0 0 .5rem; }
+#panel dl { margin: 0; display: grid; grid-template-columns: 8.5rem 1fr; gap: .5rem 1rem; }
+#panel dt { font-weight: 600; color: var(--muted); font-size: .92rem; }
+#panel dd { margin: 0; }
+.fineprint { color: var(--muted); font-size: .85rem; margin: .9rem 0 0; }
+
+/* ---------- Layout ---------- */
+.shell {
+  max-width: 1180px; margin: 2.5rem auto 0; padding: 0 1.5rem;
+  display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 3rem;
+}
+nav.toc { position: sticky; top: 1.5rem; align-self: start; max-height: calc(100vh - 3rem); overflow-y: auto; font-size: .93rem; }
+nav.toc p { margin: 0 0 .5rem; font-weight: 700; font-size: .85rem; color: var(--muted); }
+nav.toc ol { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--line); }
+nav.toc a {
+  display: block; padding: .28rem .8rem; margin-left: -2px; border-left: 2px solid transparent;
+  color: var(--muted); text-decoration: none; line-height: 1.35;
+}
+nav.toc a:hover { color: var(--ink); }
+nav.toc a.active { color: var(--ink); border-left-color: var(--orch); font-weight: 600; }
+:root[data-theme="dark"] nav.toc a.active { border-left-color: var(--orch); }
+
+main { min-width: 0; padding-bottom: 4rem; }
+section { margin: 0 0 3.5rem; }
+section > h2 {
+  font-family: var(--serif); font-weight: 700;
+  font-size: clamp(1.6rem, 3vw, 2.1rem); line-height: 1.15; letter-spacing: -0.01em;
+  margin: 0 0 1rem; padding-top: 1.2rem; border-top: 1px solid var(--line);
+}
+h3 { font-family: var(--serif); font-size: 1.25rem; margin: 2rem 0 .4rem; line-height: 1.25; }
+p { margin: 0 0 1rem; max-width: 68ch; }
+ul, ol { max-width: 68ch; padding-left: 1.3rem; margin: 0 0 1rem; }
+li { margin-bottom: .4rem; }
+code, .code { font-family: var(--mono); font-size: .88em; background: var(--soft); padding: .1em .35em; border-radius: 4px; }
+
+.callout {
+  background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--orch);
+  padding: .9rem 1.1rem; border-radius: 0 8px 8px 0; max-width: 72ch; margin: 1.25rem 0;
+}
+.callout.warn { background: var(--warn-bg); border-left-color: var(--warn-line); border-color: transparent; border-left-width: 4px; }
+.callout p:last-child { margin-bottom: 0; }
+
+.table-wrap { overflow-x: auto; margin: 1rem 0 1.5rem; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: .95rem; min-width: 560px; }
+th, td { text-align: left; padding: .7rem .9rem; vertical-align: top; border-bottom: 1px solid var(--line); }
+th { background: var(--soft); font-weight: 700; font-size: .88rem; }
+tr:last-child td { border-bottom: none; }
+td:first-child { font-weight: 600; }
+.tag { display: inline-block; width: .7rem; height: .7rem; border-radius: 3px; margin-right: .5rem; vertical-align: -1px; }
+
+/* Flow */
+.flow { list-style: none; display: flex; flex-wrap: wrap; gap: .4rem .25rem; padding: 0; max-width: none; margin: 1rem 0; }
+.flow li { margin: 0; display: flex; align-items: center; }
+.flow li span { background: var(--surface); border: 1px solid var(--line); padding: .35rem .75rem; border-radius: 999px; font-size: .9rem; }
+.flow li:not(:last-child)::after { content: ""; width: 14px; height: 2px; background: var(--muted); margin-left: .25rem; }
+.flow-note { color: var(--muted); font-size: .92rem; }
+
+/* Role cards */
+.roles { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin: 1rem 0 1.5rem; }
+.role { background: var(--surface); border: 1px solid var(--line); border-top-width: 5px; border-radius: 10px; padding: 1rem 1.1rem; }
+.role h3 { margin: 0 0 .4rem; font-size: 1.1rem; }
+.role p { margin: 0; font-size: .96rem; }
+.role.o { border-top-color: var(--orch); } .role.l { border-top-color: var(--large); }
+.role.m { border-top-color: var(--med); }  .role.s { border-top-color: var(--small); }
+
+/* Vote demo */
+.demo { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 1.1rem 1.25rem 1.25rem; margin: 1.5rem 0; max-width: 72ch; }
+.demo h3 { margin-top: 0; }
+.votes { display: grid; grid-template-columns: repeat(16, 1fr); gap: 5px; max-width: 420px; margin: .9rem 0; }
+.votes span { aspect-ratio: 1; border-radius: 50%; background: var(--orch); transition: background .3s, transform .3s; }
+.votes span.b { background: var(--small); }
+.demo.revealed .votes span:not(.b) { background: transparent; box-shadow: inset 0 0 0 2px var(--orch); opacity: .6; }
+.demo.revealed .votes span.b { transform: scale(1.12); }
+.demo button {
+  font: inherit; font-weight: 600; font-size: .92rem; cursor: pointer;
+  background: var(--ink); color: var(--bg); border: none; border-radius: 8px; padding: .55rem 1rem;
+}
+.legend-line { display: flex; gap: 1.25rem; flex-wrap: wrap; font-size: .92rem; margin-bottom: .25rem; }
+.legend-line .tag { width: .8rem; height: .8rem; border-radius: 50%; }
+#voteMsg { margin: .9rem 0 .75rem; min-height: 3.2rem; }
+
+/* Steps */
+ol.steps { max-width: 68ch; padding-left: 1.5rem; }
+ol.steps li { padding-left: .3rem; }
+ol.steps li::marker { font-family: var(--serif); font-weight: 700; color: var(--orch); }
+:root[data-theme="dark"] ol.steps li::marker { color: var(--orch); }
+
+.apps { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 0 2rem; margin: 1rem 0; }
+.apps div { border-top: 1px solid var(--line); padding: .8rem 0 .4rem; }
+.apps h3 { margin: 0 0 .25rem; font-size: 1.05rem; }
+.apps p { font-size: .95rem; margin: 0 0 .6rem; }
+
+.refs { list-style: none; padding: 0; max-width: 78ch; }
+.refs li { padding: .7rem 0; border-top: 1px solid var(--line); font-size: .95rem; word-break: break-word; }
+.refs li:last-child { border-bottom: 1px solid var(--line); }
+
+footer { max-width: 1180px; margin: 0 auto; padding: 2rem 1.5rem 3rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .92rem; }
+footer p { max-width: none; margin: 0 0 .3rem; }
+.to-top { position: fixed; right: 1.2rem; bottom: 1.2rem; font-size: .85rem; background: var(--ink); color: var(--bg); text-decoration: none; padding: .5rem .9rem; border-radius: 999px; opacity: 0; pointer-events: none; transition: opacity .2s; }
+.to-top.show { opacity: .92; pointer-events: auto; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .shell { grid-template-columns: 1fr; gap: 0; margin-top: 1.5rem; }
+  nav.toc { position: static; max-height: none; margin-bottom: 2rem; }
+  nav.toc details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: .7rem 1rem; }
+  nav.toc summary { cursor: pointer; font-weight: 600; }
+  nav.toc ol { margin-top: .6rem; }
+  #panel dl { grid-template-columns: 1fr; gap: .1rem; }
+  #panel dt { margin-top: .5rem; }
+}
+@media (min-width: 901px) {
+  nav.toc summary { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .draw, .dot-in { animation: none !important; opacity: 1; stroke-dashoffset: 0; }
+  * { transition: none !important; }
+}
+@media print {
+  nav.toc, .theme-btn, .to-top, .tabs, .demo button { display: none; }
+  body { background: #fff; color: #000; }
+  .shell { display: block; }
+  .draw, .dot-in { animation: none !important; opacity: 1; stroke-dashoffset: 0; }
+}
+</style>
+</head>
+<body>
+
+<header class="hero" id="top">
+  <div class="hero-top">
+    <span>Technical Concept Report</span>
+    <button class="theme-btn" id="themeBtn" type="button" aria-label="Switch between light and dark theme">Switch theme</button>
+  </div>
+  <h1>Hierarchical Multi-Agent Systems (H-MAS)</h1>
+  <p class="lede">A proposed architecture for coordinating AI agents with different capabilities.</p>
+  <dl class="meta">
+    <div><dt>Prepared by</dt><dd>Not Rigit</dd></div>
+    <div><dt>Type</dt><dd>Independent technical concept and research overview</dd></div>
+    <div><dt>Version</dt><dd>1.0, 11 November 2026</dd></div>
+  </dl>
+  <div class="status" role="note">
+    <strong>Status: proposed design.</strong> This report describes an architecture and a set of engineering hypotheses. It does not claim that the complete system has been built, experimentally validated, or adopted as an industry standard.
+  </div>
+</header>
+
+<div class="explorer">
+  <div class="explorer-card">
+    <h2>The four levels at a glance</h2>
+    <p class="hint">Select a level to see what it does. The 1 + 4 + 64 layout is an illustrative example, not a recommended ratio.</p>
+    <svg id="tree" viewBox="0 0 720 290" role="group" aria-label="Diagram of the H-MAS hierarchy: one orchestrator, one large reasoning agent, four medium specialist agents, and sixty-four small task agents"></svg>
+    <div class="tabs" id="tabs" role="group" aria-label="Choose a level"></div>
+    <div id="panel" aria-live="polite"></div>
+    <p class="fineprint">Small agents are drawn in four equal groups only for readability. The report does not specify how many small agents report to each medium agent.</p>
+  </div>
+</div>
+
+<div class="shell">
+  <nav class="toc" aria-label="Report sections">
+    <details id="tocDetails" open>
+      <summary>Contents</summary>
+      <p>Contents</p>
+      <ol id="tocList">
+        <li><a href="#s1">1. Executive summary</a></li>
+        <li><a href="#s2">2. Scope and terminology</a></li>
+        <li><a href="#s3">3. Design objectives</a></li>
+        <li><a href="#s4">4. System architecture</a></li>
+        <li><a href="#s5">5. Hierarchical agent roles</a></li>
+        <li><a href="#s6">6. Orchestration and scheduling</a></li>
+        <li><a href="#s7">7. Communication and shared state</a></li>
+        <li><a href="#s8">8. Verification and probability</a></li>
+        <li><a href="#s9">9. Software and hardware design</a></li>
+        <li><a href="#s10">10. Applications and example workflow</a></li>
+        <li><a href="#s11">11. Evaluation framework</a></li>
+        <li><a href="#s12">12. Risks and safeguards</a></li>
+        <li><a href="#s13">13. Development roadmap</a></li>
+        <li><a href="#s14">14. Conclusion</a></li>
+        <li><a href="#refs">References</a></li>
+      </ol>
+    </details>
+  </nav>
+
+  <main>
+
+    <!-- 1 -->
+    <section id="s1">
+      <h2>1. Executive summary</h2>
+      <p>Hierarchical Multi-Agent Systems (H-MAS) is the descriptive name used in this report for a proposed architecture in which AI agents are arranged into levels according to their capabilities and responsibilities. Rather than sending every request to one large model, the system decomposes a goal into smaller tasks, routes work to appropriate agents, combines their outputs, and verifies important results.</p>
+      <p>The proposed design has four functional levels: a central orchestrator, high-capability reasoning agents, intermediate specialist agents, and lightweight task agents. The orchestrator plans and coordinates; it is not expected to do all the work. Small agents execute bounded subtasks in parallel. Medium agents integrate and review groups of results. Large agents handle difficult reasoning, high-impact decisions, and unresolved conflicts.</p>
+      <p>An illustrative configuration is one orchestrator, one large reasoning agent, four medium agents, and sixty-four small agents. These numbers are examples only. They are not an industry standard, recommended ratio, or proven optimum. The best arrangement depends on workload, reliability, cost, latency, and available hardware.</p>
+      <div class="callout">
+        <p>The central proposition is that a well-designed hierarchy may improve task allocation and throughput while preserving access to stronger reasoning when needed. Its value must be demonstrated through controlled testing; adding more agents does not automatically improve accuracy or efficiency.</p>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="s2">
+      <h2>2. Scope and terminology</h2>
+      <h3>2.1 Agent</h3>
+      <p>An agent is a software component that receives a task, uses an AI model and/or tools, maintains limited task state, and returns an output with a status. An agent may be a separate model instance, a specialized service, or a model operating under a defined role. Different agents do not necessarily require different model architectures.</p>
+      <h3>2.2 Hierarchy</h3>
+      <p>A hierarchy establishes levels of responsibility and escalation. Lower-level agents perform bounded work; higher-level agents coordinate, review, or resolve tasks that exceed lower-level authority. This differs from a flat multi-agent system where agents interact more directly as peers.</p>
+      <h3>2.3 Relationship to existing technologies</h3>
+      <p>Multi-Agent Systems (MAS), distributed artificial intelligence, model routing, orchestration, and LLM-based agent collaboration are established areas. Mixture of Experts (MoE) is related but distinct: an MoE typically routes tokens or internal representations among expert subnetworks within one model. H-MAS, as used here, coordinates separate agents that may have independent prompts, tools, state, and workflows.</p>
+      <p>This report does not claim that H-MAS is a newly standardized scientific term. It presents a proposed combination of known design patterns. The exact roles, task hierarchy, and illustrative 1 + 4 + 64 arrangement are part of this proposal and require empirical evaluation.</p>
+    </section>
+
+    <!-- 3 -->
+    <section id="s3">
+      <h2>3. Design objectives</h2>
+      <ul>
+        <li><strong>Capability-aware routing:</strong> assign each task to an agent likely to complete it reliably at an appropriate cost.</li>
+        <li><strong>Parallel execution:</strong> run independent subtasks concurrently where dependencies allow.</li>
+        <li><strong>Controlled integration:</strong> normalize and review outputs before combining them into a final result.</li>
+        <li><strong>Traceability:</strong> record task ownership, inputs, outputs, versions, decisions, and verification results.</li>
+        <li><strong>Fault containment:</strong> prevent one agent failure from silently corrupting the whole project.</li>
+        <li><strong>Resource efficiency:</strong> balance capability against compute, memory, latency, energy, and monetary cost.</li>
+        <li><strong>Domain flexibility:</strong> support different tools and specialist roles without redesigning the entire hierarchy.</li>
+      </ul>
+    </section>
+
+    <!-- 4 -->
+    <section id="s4">
+      <h2>4. System architecture</h2>
+      <p>The architecture can be divided into a control plane and a work plane. The control plane manages planning, permissions, scheduling, task state, and monitoring. The work plane contains agents that execute tasks and produce results. Separating these responsibilities makes progress easier to track and recover.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Layer</th><th>Responsibility</th><th>Typical output</th></tr></thead>
+          <tbody>
+            <tr><td><span class="tag" style="background:var(--orch)"></span>Orchestrator</td><td>Interpret goal, build task graph, assign work, track dependencies, escalate failures, coordinate delivery.</td><td>Task plan, assignments, project state.</td></tr>
+            <tr><td><span class="tag" style="background:var(--large)"></span>Large reasoning agent</td><td>Complex reasoning, cross-domain trade-offs, ambiguity, high-impact review, conflict resolution.</td><td>Decision records, high-level analysis.</td></tr>
+            <tr><td><span class="tag" style="background:var(--med)"></span>Medium specialist agents</td><td>Integrate groups of subtasks, check interfaces, normalize outputs, review quality.</td><td>Integrated modules, review findings.</td></tr>
+            <tr><td><span class="tag" style="background:var(--small)"></span>Small task agents</td><td>Execute narrow, repeatable tasks such as extraction, classification, calculations, or first-pass checks.</td><td>Structured task results and local checks.</td></tr>
+            <tr><td>Shared data services</td><td>Persist project state, artifacts, logs, schemas, and version history.</td><td>Authoritative records and artifacts.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Conceptual flow</h3>
+      <ol class="flow" aria-label="Conceptual flow">
+        <li><span>Goal</span></li>
+        <li><span>Orchestrator</span></li>
+        <li><span>Task decomposition</span></li>
+        <li><span>Small-agent execution</span></li>
+        <li><span>Medium-agent integration and review</span></li>
+        <li><span>Large-agent escalation when required</span></li>
+        <li><span>Final validation and delivery</span></li>
+      </ol>
+      <p class="flow-note">Not every task needs every layer.</p>
+    </section>
+
+    <!-- 5 -->
+    <section id="s5">
+      <h2>5. Hierarchical agent roles</h2>
+      <div class="roles">
+        <div class="role o">
+          <h3>5.1 Orchestrator</h3>
+          <p>Converts a goal into a dependency-aware task graph, assigns unique task IDs, selects agents, enforces permissions, monitors progress, and decides when to retry or escalate. It should keep durable project state outside its conversational context. If it fails, the system should reconstruct progress from the task database and event log.</p>
+        </div>
+        <div class="role l">
+          <h3>5.2 Large reasoning agents</h3>
+          <p>Reserved for tasks that justify their higher computational cost: ambiguous synthesis, cross-domain reasoning, high-impact decisions, and conflicts that cannot be resolved through tests or evidence. A large model is not automatically correct. Decisions should include assumptions, evidence, and review requirements.</p>
+        </div>
+        <div class="role m">
+          <h3>5.3 Medium specialist agents</h3>
+          <p>Act as integration specialists or team leads. They combine outputs from small agents, enforce shared formats, check interface compatibility, and identify missing information. They can also independently review conclusions from large agents.</p>
+        </div>
+        <div class="role s">
+          <h3>5.4 Small task agents</h3>
+          <p>Suited to bounded subtasks: extracting facts from documents, classifying data, performing simple calculations, detecting anomalies, or checking whether requirements are present. Each task needs explicit inputs, constraints, output format, and acceptance criteria.</p>
+        </div>
+      </div>
+      <h3>5.5 Dynamic roles</h3>
+      <p>Roles should be logical, not permanently tied to parameter count. The same model family may serve different roles with different tools and instructions. Deterministic software may be preferable to an LLM for arithmetic, validation, or other exact operations. Routing should be based on measured performance, not model size alone.</p>
+    </section>
+
+    <!-- 6 -->
+    <section id="s6">
+      <h2>6. Orchestration and scheduling</h2>
+      <p>Work should be represented as a dependency graph. A task becomes eligible when its prerequisites are complete. Independent tasks can run in parallel; dependent tasks wait for required inputs. Iterative workflows should have explicit iteration limits and stopping criteria.</p>
+      <ul>
+        <li><strong>Task contract:</strong> define task ID, objective, input references, output schema, constraints, deadline, owner, and acceptance tests.</li>
+        <li><strong>Routing policy:</strong> consider task type, expected accuracy, context length, tool access, latency, cost, and risk.</li>
+        <li><strong>Escalation:</strong> retry or escalate when output is missing, malformed, inconsistent, uncertain, or fails tests.</li>
+        <li><strong>Concurrency control:</strong> assign file/resource ownership and use version checks or locks to prevent conflicting writes.</li>
+        <li><strong>Completion policy:</strong> accept work only when its output meets defined criteria; an agent claiming completion is not enough.</li>
+      </ul>
+    </section>
+
+    <!-- 7 -->
+    <section id="s7">
+      <h2>7. Communication and shared state</h2>
+      <h3>7.1 Structured communication</h3>
+      <p>Agents should exchange structured records rather than relying only on free-form conversation. A message can include <code>task_id</code>, <code>sender</code>, <code>recipient</code>, <code>status</code>, <code>input_refs</code>, <code>output_ref</code>, <code>errors</code>, <code>confidence</code>, <code>evidence_refs</code>, and <code>review_required</code>. The schema should be versioned so agents using different model families can interoperate.</p>
+      <h3>7.2 Shared project memory</h3>
+      <p>Durable project records include approved requirements, decisions, schemas, task states, test results, and artifact versions. Temporary reasoning should be isolated and disposable. The orchestrator should consult an authoritative store rather than assume every agent shares the same conversational memory.</p>
+      <h3>7.3 Namespaces and ownership</h3>
+      <p>Prefixes such as <code>sm08_data_cleaning_result</code> or <code>med02_api_review</code> can reduce naming collisions. Prefixes alone are not sufficient. Stronger isolation comes from module boundaries, scoped variables, separate workspaces, file ownership, database transactions, and explicit API contracts.</p>
+      <h3>7.4 Communication topology</h3>
+      <p>A hub-and-spoke pattern is a practical default: agents report to their coordinator, and coordinators communicate upward. Limited peer-to-peer communication can be enabled for specific tasks. Unrestricted all-to-all messaging can create unnecessary traffic, duplicated work, and conflicting state.</p>
+    </section>
+
+    <!-- 8 -->
+    <section id="s8">
+      <h2>8. Verification, consensus and probability</h2>
+      <p>Verification must be separate from generation. An agent confidence score is not automatically a calibrated probability. Confidence becomes useful only when compared with observed outcomes on representative tasks.</p>
+      <h3>8.1 Independent checks</h3>
+      <p>Important conclusions should be checked using different methods: independent model review, deterministic calculations, source verification, unit tests, simulation, formal constraints, or human review. Reviewers should, where possible, assess the task and evidence without being anchored by the first answer.</p>
+      <h3>8.2 Voting is not proof</h3>
+      <p>If 48 of 64 agents agree, that is a vote, not proof of correctness. Agents may share training data, prompts, tools, or assumptions and therefore make correlated errors. A majority can repeat the same mistake. Voting should be combined with evidence quality, diversity, calibrated reliability, and task-specific tests.</p>
+
+      <div class="demo" id="voteDemo">
+        <h3>Try it: a majority can be wrong</h3>
+        <p style="margin-bottom:.3rem">A made-up illustration, not experimental data. Sixty-four agents answer the same question, and all of them were given the same flawed source.</p>
+        <div class="legend-line">
+          <span><span class="tag" style="background:var(--orch)"></span>Answer A: 48 agents</span>
+          <span><span class="tag" style="background:var(--small)"></span>Answer B: 16 agents</span>
+        </div>
+        <div class="votes" id="votes" aria-hidden="true"></div>
+        <p id="voteMsg" aria-live="polite">The majority says A.</p>
+        <button type="button" id="voteBtn">Run the deterministic check</button>
+      </div>
+
+      <h3>8.3 Statistical aggregation</h3>
+      <p>Depending on the problem, aggregation may use majority voting, weighted voting, median, mean, Bayesian updating, or Monte Carlo simulation. The method must match the data and assumptions. Numerical estimates should include uncertainty ranges and sensitivity analysis rather than presenting one percentage as certain.</p>
+      <h3>8.4 Verification sequence</h3>
+      <ol class="steps">
+        <li>Validate output schema and required fields.</li>
+        <li>Check factual claims against trusted sources or supplied evidence.</li>
+        <li>Run deterministic tests and calculations where possible.</li>
+        <li>Compare independent results and identify disagreements.</li>
+        <li>Escalate unresolved or high-impact conflicts.</li>
+        <li>Record the final decision, rationale, evidence, and remaining uncertainty.</li>
+      </ol>
+    </section>
+
+    <!-- 9 -->
+    <section id="s9">
+      <h2>9. Software and hardware design</h2>
+      <h3>9.1 Software implementation</h3>
+      <p>A prototype can use model APIs or locally hosted models, an orchestration service, a task queue, a relational database, object storage, and monitoring. Start with a small number of agents and a measurable workflow. Increasing agent count before validating coordination often increases cost and failure modes without improving results.</p>
+      <p>Possible components include a scheduler, agent runtime, tool gateway, policy engine, shared-state database, artifact store, event log, evaluation harness, and monitoring dashboard. These can initially run in one application and be separated as scale requires.</p>
+      <h3>9.2 Hardware implementation</h3>
+      <p>The software hierarchy does not require a special processor. It can run across CPU and GPU servers, cloud instances, or edge devices. A specialized hardware deployment could distribute workloads across multiple compute devices, but this is optional and separate from the agent architecture itself.</p>
+      <p>Relevant hardware concepts include multi-chip modules, chiplets, high-bandwidth memory (HBM), local SRAM/cache, high-speed interconnects, silicon interposers, and wafer-scale integration. These technologies can improve compute density or data movement; they do not automatically provide intelligent coordination.</p>
+      <h3>9.3 Intermediate storage</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tier</th><th>Use</th><th>Consideration</th></tr></thead>
+          <tbody>
+            <tr><td>Local SRAM/cache</td><td>Immediate working state and frequently reused data.</td><td>Very fast, limited capacity, often device-local.</td></tr>
+            <tr><td>Shared memory/fabric</td><td>Exchange small results and synchronization data.</td><td>Requires consistency and contention management.</td></tr>
+            <tr><td>NVMe SSD</td><td>Large intermediate artifacts, checkpoints, datasets.</td><td>Higher latency than memory; manage concurrent writes.</td></tr>
+            <tr><td>Database/object store</td><td>Durable state, logs, versions, final outputs.</td><td>Needs backups, access control, integrity checks.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 10 -->
+    <section id="s10">
+      <h2>10. Applications and example workflow</h2>
+      <p>Potential applications are domain-independent in principle, but suitability depends on available tools, data quality, and validation methods.</p>
+      <div class="apps">
+        <div><h3>Scientific research</h3><p>Search and classify literature, extract measurements, reproduce calculations, compare hypotheses, and prepare a synthesis for expert review. Provenance and reproducibility are essential.</p></div>
+        <div><h3>Engineering and design</h3><p>Explore design alternatives, check component constraints, analyze simulation outputs, and review subsystem interfaces. Safety-critical designs require qualified engineering approval.</p></div>
+        <div><h3>Healthcare support</h3><p>Organize literature, summarize records, or support administrative workflows. Diagnosis and treatment decisions require qualified professionals and validated systems.</p></div>
+        <div><h3>Education</h3><p>Generate differentiated explanations, practice material, answer checks, and feedback. Educators should retain oversight of grading and consequential decisions.</p></div>
+        <div><h3>Business and economics</h3><p>Consolidate reports, compare scenarios, detect anomalies, and prepare forecasts. Forecasts must expose assumptions and uncertainty.</p></div>
+        <div><h3>Robotics and operations</h3><p>Use high-level planning to decompose goals while local controllers handle real-time execution. Safety interlocks and deterministic controls must remain independent.</p></div>
+        <div><h3>Environmental analysis</h3><p>Process sensor data, compare models, identify unusual readings, and prepare monitoring summaries. Measurement quality and provenance remain critical.</p></div>
+      </div>
+
+      <h3>10.1 Example: environmental monitoring</h3>
+      <ol class="steps">
+        <li>The orchestrator receives a goal to assess unusual changes in a monitored river segment.</li>
+        <li>Small agents process sensor batches, flag missing readings, and extract weather or flow observations.</li>
+        <li>Medium agents combine regional summaries, check time alignment, and identify inconsistent measurements.</li>
+        <li>A large reasoning agent reviews competing explanations and uncertainty, without replacing field verification.</li>
+        <li>The orchestrator assembles a traceable report with sources, tests, unresolved anomalies, and a request for expert review where needed.</li>
+      </ol>
+    </section>
+
+    <!-- 11 -->
+    <section id="s11">
+      <h2>11. Evaluation framework</h2>
+      <p>A credible implementation should be compared with a single-agent baseline and simpler multi-agent alternatives. The purpose is to determine whether hierarchy improves outcomes enough to justify coordination costs.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Metric</th><th>Meaning</th><th>Why it matters</th></tr></thead>
+          <tbody>
+            <tr><td>Task success rate</td><td>Share of tasks meeting predefined acceptance criteria.</td><td>Measures completion quality.</td></tr>
+            <tr><td>End-to-end latency</td><td>Time from request to accepted result.</td><td>Captures parallelism and coordination overhead.</td></tr>
+            <tr><td>Cost per accepted task</td><td>Compute, model, storage, and tool costs per successful result.</td><td>Tests economic viability.</td></tr>
+            <tr><td>Retry/escalation rate</td><td>Frequency of rework or upward escalation.</td><td>Reveals routing weaknesses.</td></tr>
+            <tr><td>Integration error rate</td><td>Incompatible outputs, duplicated work, or broken interfaces.</td><td>Measures coordination quality.</td></tr>
+            <tr><td>Calibration</td><td>Agreement between confidence and observed accuracy.</td><td>Tests whether confidence can guide routing.</td></tr>
+            <tr><td>Resource/energy use</td><td>CPU/GPU time, memory, network traffic, and energy.</td><td>Measures operational efficiency.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout">
+        <p><strong>Recommended experiment.</strong> Select representative tasks. Run them with a single strong model, a flat multi-agent setup, and the proposed hierarchy. Repeat trials, keep tools and information consistent, and score outputs against explicit criteria. Report averages, variance, failures, latency, and cost. Do not claim improvement unless results support it.</p>
+      </div>
+    </section>
+
+    <!-- 12 -->
+    <section id="s12">
+      <h2>12. Risks and safeguards</h2>
+      <ul>
+        <li><strong>Coordination overhead:</strong> more agents create messages, scheduling work, and integration points. Parallelize only when tasks are separable.</li>
+        <li><strong>Correlated errors:</strong> agents may share biases or sources. Use independent evidence and deterministic checks rather than relying on headcount.</li>
+        <li><strong>Orchestrator bottleneck:</strong> use queues, checkpointing, failover, and recoverable state.</li>
+        <li><strong>State conflicts:</strong> use ownership, version control, transactions, and contract tests to prevent overwrites and schema drift.</li>
+        <li><strong>Security and privacy:</strong> apply least-privilege permissions, secret isolation, audit logs, and approval gates.</li>
+        <li><strong>Untrusted content:</strong> treat retrieved content as data, constrain tool permissions, and validate instructions at the policy layer.</li>
+        <li><strong>Accountability:</strong> preserve provenance and assign a responsible owner for high-impact actions.</li>
+        <li><strong>Cost and energy:</strong> measure total system cost, not just the cost of individual agents.</li>
+        <li><strong>False confidence:</strong> require evidence, calibration, and domain-appropriate review.</li>
+      </ul>
+      <div class="callout warn">
+        <p><strong>For high-impact domains, the system should default to advisory operation.</strong> Human approval should be required before consequential actions such as medical decisions, financial transactions, safety-critical control, or irreversible production changes.</p>
+      </div>
+    </section>
+
+    <!-- 13 -->
+    <section id="s13">
+      <h2>13. Development roadmap</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Phase</th><th>Objective</th><th>Exit criterion</th></tr></thead>
+          <tbody>
+            <tr><td>1. Prototype</td><td>One orchestrator and two or three task agents on a narrow workflow.</td><td>Tasks are assigned, tracked, and repeatably completed.</td></tr>
+            <tr><td>2. Structured state</td><td>Add task database, artifact storage, message schemas, and versioning.</td><td>Progress survives restart and can be reconstructed.</td></tr>
+            <tr><td>3. Hierarchical integration</td><td>Add medium-level integration and large-model escalation.</td><td>Integration defects and escalation outcomes are measurable.</td></tr>
+            <tr><td>4. Evaluation</td><td>Add test harness, independent checks, baseline comparisons, calibration.</td><td>Claims are supported by reproducible experiments.</td></tr>
+            <tr><td>5. Scale and harden</td><td>Increase concurrency; add permissions, failover, monitoring, security review.</td><td>System passes load and failure tests.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>Prove the coordination model on a small system before expanding to dozens of agents or specialized hardware. Consider a 1 + 4 + 64 deployment only if workload measurements demonstrate that this scale is useful.</p>
+    </section>
+
+    <!-- 14 -->
+    <section id="s14">
+      <h2>14. Conclusion</h2>
+      <p>Hierarchical Multi-Agent Systems offer a design direction for distributing complex work across agents with different capabilities. The proposed model separates coordination from execution, assigns bounded subtasks to lightweight agents, uses intermediate agents for integration, and reserves high-capability reasoning for difficult or high-impact decisions.</p>
+      <p>The central engineering challenge is not simply creating more agents. It is decomposing work correctly, communicating through reliable contracts, maintaining consistent shared state, and validating outputs with independent evidence. Without these controls, additional agents can increase complexity and cost without improving results.</p>
+      <p>H-MAS should therefore be treated as a testable engineering proposal. Its value must be demonstrated through controlled comparisons with simpler systems and transparent reporting of accuracy, latency, cost, failure rates, and resource use.</p>
+    </section>
+
+    <!-- Refs -->
+    <section id="refs">
+      <h2>References</h2>
+      <ol class="refs">
+        <li>[1] X. Li, S. Wang, S. Zeng, Y. Wu, and Y. Yang, “A survey on LLM-based multi-agent systems: workflow, infrastructure, and challenges,” 2024. DOI: 10.1007/s44336-024-00009-2. <a href="https://link.springer.com/article/10.1007/s44336-024-00009-2" target="_blank" rel="noopener">link.springer.com/article/10.1007/s44336-024-00009-2</a></li>
+        <li>[2] T. Guo et al., “Large Language Model Based Multi-agents: A Survey of Progress and Challenges,” IJCAI 2024, pp. 8048–8057. DOI: 10.24963/ijcai.2024/890. <a href="https://www.ijcai.org/proceedings/2024/0890" target="_blank" rel="noopener">ijcai.org/proceedings/2024/0890</a></li>
+        <li>[3] K.-T. Tran et al., “Multi-Agent Collaboration Mechanisms: A Survey of LLMs,” arXiv:2501.06322, 2025. <a href="https://arxiv.org/abs/2501.06322" target="_blank" rel="noopener">arxiv.org/abs/2501.06322</a></li>
+        <li>[4] N. Shazeer et al., “Outrageously Large Neural Networks: The Sparsely-Gated Mixture-of-Experts Layer,” ICLR, 2017. <a href="https://research.google/pubs/outrageously-large-neural-networks-the-sparsely-gated-mixture-of-experts-layer/" target="_blank" rel="noopener">research.google/pubs/outrageously-large-neural-networks-the-sparsely-gated-mixture-of-experts-layer</a></li>
+        <li>[5] R. M. Aratchige and W. M. K. S. Ilmini, “LLMs Working in Harmony: A Survey on the Technological Aspects of Building Effective LLM-Based Multi Agent Systems,” arXiv:2504.01963, 2025. <a href="https://arxiv.org/abs/2504.01963" target="_blank" rel="noopener">arxiv.org/abs/2504.01963</a></li>
+        <li>[6] “The Five Ws of Multi-Agent Communication: Who Talks to Whom, When, What, and Why,” Transactions on Machine Learning Research, 2026. <a href="https://openreview.net/pdf?id=LGsed0QQVq" target="_blank" rel="noopener">openreview.net/pdf?id=LGsed0QQVq</a></li>
+      </ol>
+      <div class="callout">
+        <p><strong>Reference note.</strong> These sources provide background on multi-agent systems, LLM-agent collaboration, communication, and Mixture of Experts. They do not validate this report’s exact proposed configuration. The architecture and recommendations here are a synthesis and proposal credited to Not Rigit.</p>
+      </div>
+      <p style="font-size:.9rem;color:var(--muted)">Reference links need an internet connection. Everything else on this page works offline.</p>
+    </section>
+
+  </main>
+</div>
+
+<footer>
+  <p><strong>Prepared and credited to: Not Rigit</strong></p>
+  <p>Contact: <a href="mailto:spark.x.pvt.ltd@gmail.com">spark.x.pvt.ltd@gmail.com</a> and <a href="mailto:notrigit@gmail.com">notrigit@gmail.com</a></p>
+  <p>H-MAS Technical Concept Report, version 1.0, 11 November 2026.</p>
+</footer>
+
+<a href="#top" class="to-top" id="toTop">Back to top</a>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ---------- Level data (taken from the report) ---------- */
+  var LEVELS = {
+    orch: {
+      name: 'Orchestrator', count: '1', color: 'var(--orch)',
+      does: 'Interprets the goal, builds the task graph, assigns work, tracks dependencies, escalates failures, and coordinates delivery.',
+      out: 'Task plan, assignments, project state.',
+      note: 'Plans and coordinates but is not expected to do all the work. Keeps durable project state outside its conversational context so progress can be rebuilt from the task database and event log.'
+    },
+    large: {
+      name: 'Large reasoning agent', count: '1', color: 'var(--large)',
+      does: 'Handles complex reasoning, cross-domain trade-offs, ambiguity, high-impact review, and conflict resolution.',
+      out: 'Decision records, high-level analysis.',
+      note: 'Reserved for tasks that justify the higher cost. A large model is not automatically correct, so its decisions should include assumptions, evidence, and review requirements.'
+    },
+    med: {
+      name: 'Medium specialist agents', count: '4', color: 'var(--med)',
+      does: 'Integrate groups of subtasks, check interfaces, normalize outputs, and review quality.',
+      out: 'Integrated modules, review findings.',
+      note: 'Act as team leads. They can also independently review conclusions from large agents.'
+    },
+    small: {
+      name: 'Small task agents', count: '64', color: 'var(--small)',
+      does: 'Execute narrow, repeatable tasks such as extraction, classification, calculations, or first-pass checks.',
+      out: 'Structured task results and local checks.',
+      note: 'Each task needs explicit inputs, constraints, output format, and acceptance criteria. Run in parallel where dependencies allow.'
+    }
+  };
+
+  /* ---------- Build the hierarchy diagram ---------- */
+  var NS = 'http://www.w3.org/2000/svg';
+  var svg = document.getElementById('tree');
+  var tabs = document.getElementById('tabs');
+  var panel = document.getElementById('panel');
+  var selected = null;
+
+  function el(name, attrs, parent) {
+    var e = document.createElementNS(NS, name);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (parent) parent.appendChild(e);
+    return e;
+  }
+  function node(key, cls) {
+    var g = el('g', { 'class': 'node n-' + key + (cls ? ' ' + cls : ''), tabindex: '0', role: 'button', 'data-key': key,
+      'aria-label': LEVELS[key].name + ', ' + LEVELS[key].count + ' in this example' }, svg);
+    g.addEventListener('click', function () { select(key); });
+    g.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(key); }
+    });
+    return g;
+  }
+  function label(g, x, y, text, cls) {
+    var t = el('text', { x: x, y: y, 'text-anchor': 'middle' }, g);
+    if (cls) t.setAttribute('class', cls);
+    t.textContent = text;
+    return t;
+  }
+
+  var mediumX = [90, 270, 450, 630];
+
+  // links first (so nodes sit on top)
+  mediumX.forEach(function (cx) {
+    el('path', { 'class': 'link draw', d: 'M360 60 V95 H' + cx + ' V130' }, svg);
+    el('path', { 'class': 'link draw', d: 'M' + cx + ' 170 V205' }, svg);
+  });
+  el('path', { 'class': 'esc draw', d: 'M450 38 H540' }, svg);
+  label(svg, 495, 29, 'escalate', 'tiny');
+
+  // orchestrator
+  var o = node('orch');
+  el('rect', { x: 270, y: 16, width: 180, height: 44, rx: 8 }, o);
+  label(o, 360, 43, 'Orchestrator');
+
+  // large
+  var l = node('large');
+  el('rect', { x: 540, y: 16, width: 160, height: 44, rx: 8 }, l);
+  label(l, 620, 43, 'Large agent');
+
+  // medium
+  mediumX.forEach(function (cx, i) {
+    var m = node('med');
+    el('rect', { x: cx - 60, y: 130, width: 120, height: 40, rx: 8 }, m);
+    label(m, cx, 155, 'Medium ' + (i + 1));
+  });
+
+  // small clusters (4 x 4 dots each)
+  var dotCount = 0;
+  mediumX.forEach(function (cx) {
+    var s = node('small');
+    el('rect', { 'class': 'hit', x: cx - 38, y: 207, width: 76, height: 76, rx: 10 }, s);
+    for (var r = 0; r < 4; r++) {
+      for (var c = 0; c < 4; c++) {
+        var d = el('circle', { cx: cx - 24 + c * 16, cy: 223 + r * 16, r: 5, 'class': 'dot-in' }, s);
+        d.style.animationDelay = (0.9 + dotCount * 0.012).toFixed(3) + 's';
+        dotCount++;
+      }
+    }
+  });
+
+  /* ---------- Tabs and panel ---------- */
+  ['orch', 'large', 'med', 'small'].forEach(function (key) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'tab';
+    b.setAttribute('data-key', key);
+    b.setAttribute('aria-pressed', 'false');
+    b.innerHTML = '<span class="swatch" style="background:' + LEVELS[key].color + '"></span>' +
+                  LEVELS[key].name + ' <span class="count">×' + LEVELS[key].count + '</span>';
+    b.addEventListener('click', function () { select(key); });
+    tabs.appendChild(b);
+  });
+
+  function select(key) {
+    selected = key;
+    svg.setAttribute('data-sel', key);
+    var nodes = svg.querySelectorAll('.node');
+    for (var i = 0; i < nodes.length; i++) {
+      nodes[i].classList.toggle('sel', nodes[i].getAttribute('data-key') === key);
+    }
+    var btns = tabs.querySelectorAll('.tab');
+    for (var j = 0; j < btns.length; j++) {
+      btns[j].setAttribute('aria-pressed', btns[j].getAttribute('data-key') === key ? 'true' : 'false');
+    }
+    var L = LEVELS[key];
+    panel.innerHTML =
+      '<h3>' + L.name + '</h3>' +
+      '<dl><dt>What it does</dt><dd>' + L.does + '</dd>' +
+      '<dt>Typical output</dt><dd>' + L.out + '</dd>' +
+      '<dt>Worth knowing</dt><dd>' + L.note + '</dd></dl>';
+  }
+  select('orch');
+
+  /* ---------- Vote demo ---------- */
+  var votes = document.getElementById('votes');
+  for (var v = 0; v < 64; v++) {
+    var sp = document.createElement('span');
+    if (v >= 48) sp.className = 'b';
+    votes.appendChild(sp);
+  }
+  var demo = document.getElementById('voteDemo');
+  var voteBtn = document.getElementById('voteBtn');
+  var voteMsg = document.getElementById('voteMsg');
+  voteBtn.addEventListener('click', function () {
+    var revealed = demo.classList.toggle('revealed');
+    if (revealed) {
+      voteMsg.textContent = 'The check shows B is correct. The 48 agents that agreed were repeating one shared mistake. Headcount did not catch it; independent evidence did.';
+      voteBtn.textContent = 'Reset';
+    } else {
+      voteMsg.textContent = 'The majority says A.';
+      voteBtn.textContent = 'Run the deterministic check';
+    }
+  });
+
+  /* ---------- Theme toggle (in memory only) ---------- */
+  var root = document.documentElement;
+  document.getElementById('themeBtn').addEventListener('click', function () {
+    var current = root.getAttribute('data-theme');
+    if (!current) {
+      current = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    root.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+  });
+
+  /* ---------- Contents: collapse on small screens, scroll-spy ---------- */
+  var tocDetails = document.getElementById('tocDetails');
+  if (window.matchMedia('(max-width: 900px)').matches) tocDetails.removeAttribute('open');
+  else tocDetails.setAttribute('open', '');
+
+  var links = document.querySelectorAll('#tocList a');
+  var map = {};
+  for (var a = 0; a < links.length; a++) map[links[a].getAttribute('href').slice(1)] = links[a];
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (en) {
+        if (en.isIntersecting) {
+          for (var k in map) map[k].classList.remove('active');
+          if (map[en.target.id]) map[en.target.id].classList.add('active');
+        }
+      });
+    }, { rootMargin: '-15% 0px -70% 0px' });
+    document.querySelectorAll('main section').forEach(function (s) { io.observe(s); });
+  }
+
+  /* ---------- Back to top ---------- */
+  var toTop = document.getElementById('toTop');
+  window.addEventListener('scroll', function () {
+    toTop.classList.toggle('show', window.scrollY > 900);
+  }, { passive: true });
+})();
+</script>
+</body>
+</html>
