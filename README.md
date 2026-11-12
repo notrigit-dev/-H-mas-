@@ -3,6 +3,9 @@
 
 TECHNICAL CONCEPT REPORT
 
+see website for better report:
+https://h-masresearchpaper.tiiny.site
+
 Hierarchical
 Multi-Agent Systems
 (H-MAS)
